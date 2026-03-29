@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files — project root so ../css/ and ../js/ paths work from frontend/
+// Serve static files from project root (Render hosts backend + frontend together)
 app.use(express.static(path.join(__dirname, '..'), { extensions: ['html', 'htm'] }));
 
 // API Routes

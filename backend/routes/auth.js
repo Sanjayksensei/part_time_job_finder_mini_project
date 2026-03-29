@@ -59,7 +59,7 @@ router.post('/register', async (req, res) => {
         const token = jwt.sign(
             { user_id: insertId, email, role },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
         await pool.query('UPDATE users SET current_token = ? WHERE user_id = ?', [token, insertId]);
@@ -104,7 +104,7 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { user_id: user.user_id, email: user.email, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
         await pool.query('UPDATE users SET current_token = ? WHERE user_id = ?', [token, user.user_id]);
@@ -218,7 +218,7 @@ router.post('/switch-role', authenticate, async (req, res) => {
         const token = jwt.sign(
             { user_id: user.user_id, email: user.email, role },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
         await pool.query('UPDATE users SET current_token = ? WHERE user_id = ?', [token, user.user_id]);
