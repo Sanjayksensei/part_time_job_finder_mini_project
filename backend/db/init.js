@@ -6,15 +6,21 @@ require('dotenv').config();
 
 // Create a connection pool instead of a single connection
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'root123',
-    database: process.env.DB_NAME || 'parttimejobfinder',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT,
+
+    ssl: {
+        rejectUnauthorized: false
+    },
+
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
     multipleStatements: true,
-    dateStrings: true /* Safely outputs dates as strings ignoring system timezone shifts */
+    dateStrings: true
 });
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
@@ -49,7 +55,7 @@ async function initDatabase() {
             await connection.query(seed);
             console.log('✅ Database seeded successfully');
         } else {
-             console.log('📦 Database already populated, skipping seed');
+            console.log('📦 Database already populated, skipping seed');
         }
 
         // Migration: add 'roles' column if it doesn't exist (supports dual-role feature)
@@ -295,7 +301,7 @@ async function initDatabase() {
     } catch (err) {
         console.error('❌ Database initialization error:', err.message);
         if (err.code === 'ER_BAD_DB_ERROR') {
-             console.error(`Please create the database first: CREATE DATABASE ${process.env.DB_NAME};`);
+            console.error(`Please create the database first: CREATE DATABASE ${process.env.DB_NAME};`);
         }
         throw err;
     }
