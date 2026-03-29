@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db/init');
 
-async function authenticate(req, res, next) {
+function authenticate(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'No token provided' });
@@ -10,13 +10,6 @@ async function authenticate(req, res, next) {
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        // Validate Single Active Session matches database exactly
-        const [users] = await pool.query('SELECT current_token FROM users WHERE user_id = ?', [decoded.user_id]);
-        if (users.length === 0 || users[0].current_token !== token) {
-            return res.status(401).json({ error: 'Session expired or logged in from another device. Please log in again.' });
-        }
-        
         req.user = decoded;
         next();
     } catch (err) {
@@ -24,7 +17,7 @@ async function authenticate(req, res, next) {
     }
 }
 
-async function optionalAuthenticate(req, res, next) {
+function optionalAuthenticate(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return next();
@@ -33,11 +26,8 @@ async function optionalAuthenticate(req, res, next) {
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const [users] = await pool.query('SELECT current_token FROM users WHERE user_id = ?', [decoded.user_id]);
-        if (users.length > 0 && users[0].current_token === token) {
-            req.user = decoded;
-        }
-    } catch (err) {}
+        req.user = decoded;
+    } catch (err) { }
     next();
 }
 
