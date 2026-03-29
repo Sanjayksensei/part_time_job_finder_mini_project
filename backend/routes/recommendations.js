@@ -127,6 +127,7 @@ router.get('/jobs', authenticate, requireRole('employee'), async (req, res) => {
         const scored = [];
         for (const job of allJobs) {
             if (excludedJobs.has(job.job_id)) continue;
+            if (job.employer_id === userId) continue; // Skip own posted jobs (role-switch safety)
 
             let score = 0;
 

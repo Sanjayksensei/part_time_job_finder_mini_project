@@ -296,6 +296,21 @@ async function initDatabase() {
             console.error('Migration warning (reports table):', migErr.message);
         }
 
+        // Migration: add UNIQUE constraint on applications(job_id, employee_id) to prevent duplicates
+        try {
+            const [indexes] = await connection.query(
+                "SHOW INDEX FROM applications WHERE Key_name = 'unique_job_employee'"
+            );
+            if (indexes.length === 0) {
+                await connection.query(
+                    "ALTER TABLE applications ADD UNIQUE KEY unique_job_employee (job_id, employee_id)"
+                );
+                console.log('✅ Migration: added UNIQUE(job_id, employee_id) to applications');
+            }
+        } catch (migErr) {
+            console.error('Migration warning (applications unique constraint):', migErr.message);
+        }
+
         connection.release();
         return pool;
     } catch (err) {

@@ -14,6 +14,11 @@ router.post('/', authenticate, requireRole('employee'), async (req, res) => {
 
         const job = jobs[0];
 
+        // 🔒 Block employer from applying to their own job (role-switch edge case)
+        if (job.employer_id === req.user.user_id) {
+            return res.status(403).json({ error: 'You cannot apply to your own job.' });
+        }
+
         // Block applications to closed jobs
         if (job.status === 'closed') {
             return res.status(400).json({ error: 'This job is no longer accepting applications. The required number of workers has been reached.' });

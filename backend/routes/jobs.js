@@ -17,6 +17,12 @@ router.get('/', optionalAuthenticate, async (req, res) => {
             LEFT JOIN employer_profiles ep ON j.employer_id = ep.user_id WHERE j.status = 'open'`;
         const params = [];
 
+        // Exclude employer's own jobs for any authenticated user (prevents self-apply in role-switch)
+        if (req.user) {
+            sql += ` AND j.employer_id != ?`;
+            params.push(req.user.user_id);
+        }
+
         if (req.user && req.user.role === 'employee') {
             sql += ` AND j.job_id NOT IN (SELECT job_id FROM applications WHERE employee_id = ?)`;
             params.push(req.user.user_id);

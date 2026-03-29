@@ -2295,3 +2295,31 @@ body::before {
         margin-bottom: var(--space-md) !important;
     }
 }
+
+/* ==================== LAYOUT SCROLL FIX ==================== */
+/* Constrain the sidebar + main-content layout wrapper to viewport height.
+   This forces .main-content (which has overflow-y: auto) to be the sole
+   scroll container, preventing the body from scrolling underneath it. */
+body > .d-flex {
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Ensure .main-content is the scroll container */
+.main-content {
+    position: relative;
+    -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
+}
+
+/* Mobile: allow natural full-page scrolling instead of fixed viewport */
+@media (max-width: 768px) {
+    body > .d-flex {
+        height: auto;
+        overflow: visible;
+    }
+    .main-content {
+        height: auto;
+        max-height: none;
+        overflow-y: visible;
+    }
+}

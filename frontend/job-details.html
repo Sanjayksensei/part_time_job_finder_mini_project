@@ -188,7 +188,12 @@
 
                     ${role === 'employee' ? `
                     <div id="applySection" class="mt-4">
-                        ${job.status === 'closed' || (job.max_workers && job.hired_count >= job.max_workers) ? `
+                        ${String(job.employer_id) === sessionStorage.getItem('userId') ? `
+                        <button class="btn btn-secondary btn-lg w-100 py-3" disabled>
+                            <i class="fas fa-ban me-2"></i>This Is Your Own Job
+                        </button>
+                        <p class="text-center text-muted mt-2">You cannot apply to a job you posted.</p>
+                        ` : job.status === 'closed' || (job.max_workers && job.hired_count >= job.max_workers) ? `
                         <button class="btn btn-secondary btn-lg w-100 py-3" disabled>
                             <i class="fas fa-lock me-2"></i>Positions Filled
                         </button>
