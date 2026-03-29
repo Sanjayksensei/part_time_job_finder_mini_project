@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://part-time-job-finder-mini-project.onrender.com/api';
 
 function getToken() {
     return sessionStorage.getItem('authToken');
@@ -112,14 +112,14 @@ function showToast(message, type = 'success') {
         container.className = 'toast-container';
         document.body.appendChild(container);
     }
-    
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     const icon = type === 'success' ? 'check-circle' : type === 'info' ? 'info-circle' : 'times-circle';
     toast.innerHTML = `<i class="fas fa-${icon} me-2"></i>${message}`;
-    
+
     container.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100px)';
@@ -133,13 +133,13 @@ function confirmAction(message) {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay active';
         overlay.style.zIndex = '10000';
-        
+
         const modal = document.createElement('div');
         modal.className = 'modal-content';
         modal.style.maxWidth = '400px';
         modal.style.textAlign = 'center';
         modal.style.padding = '2rem';
-        
+
         modal.innerHTML = `
             <div style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;">
                 <i class="fas fa-question-circle"></i>
@@ -151,7 +151,7 @@ function confirmAction(message) {
                 <button class="btn btn-primary" style="flex: 1;" id="btnConfirmYes">YES</button>
             </div>
         `;
-        
+
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
 
@@ -255,10 +255,10 @@ async function setupLocationAutocomplete(inputId, onSelectCallback) {
         dropdown.innerHTML = '';
         if (!val) {
             dropdown.classList.add('d-none');
-            if(onSelectCallback) onSelectCallback();
+            if (onSelectCallback) onSelectCallback();
             return;
         }
-        
+
         const matches = cachedLocations.filter(l => l.toLowerCase().includes(val));
         if (matches.length > 0) {
             dropdown.classList.remove('d-none');
@@ -271,15 +271,15 @@ async function setupLocationAutocomplete(inputId, onSelectCallback) {
                     e.preventDefault(); // preventing blur logic destroying modal instantly
                     inputEl.value = match;
                     dropdown.classList.add('d-none');
-                    if(onSelectCallback) onSelectCallback();
+                    if (onSelectCallback) onSelectCallback();
                 };
                 dropdown.appendChild(li);
             });
         } else {
             dropdown.classList.add('d-none');
         }
-        
-        if(onSelectCallback) onSelectCallback();
+
+        if (onSelectCallback) onSelectCallback();
     });
 
     inputEl.addEventListener('blur', () => {
@@ -302,7 +302,7 @@ async function setupLocationAutocomplete(inputId, onSelectCallback) {
                     e.preventDefault();
                     inputEl.value = match;
                     dropdown.classList.add('d-none');
-                    if(onSelectCallback) onSelectCallback();
+                    if (onSelectCallback) onSelectCallback();
                 };
                 dropdown.appendChild(li);
             });
@@ -335,7 +335,7 @@ function setupRealLocationAutocomplete(inputId) {
         clearTimeout(debounceTimeout);
         const val = inputEl.value.trim();
         dropdown.innerHTML = '';
-        
+
         if (val.length < 2) {
             dropdown.classList.add('d-none');
             return;
@@ -351,23 +351,23 @@ function setupRealLocationAutocomplete(inputId) {
                 const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`;
                 const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
                 const data = await res.json();
-                
+
                 dropdown.innerHTML = '';
                 if (data.length > 0) {
                     data.forEach(place => {
                         const li = document.createElement('li');
                         li.className = 'list-group-item list-group-item-action cursor-pointer';
                         li.style.cursor = 'pointer';
-                        
+
                         // Smart display formatting ("City, State, Country")
                         const parts = place.display_name.split(',');
                         let cleanName = place.display_name;
                         if (parts.length > 3) {
-                            cleanName = `${parts[0].trim()}, ${parts[1].trim()}, ${parts[parts.length-1].trim()}`;
+                            cleanName = `${parts[0].trim()}, ${parts[1].trim()}, ${parts[parts.length - 1].trim()}`;
                         }
-                        
+
                         li.innerHTML = `<i class="fas fa-map-marker-alt text-primary me-2"></i> ${cleanName}`;
-                        
+
                         li.onmousedown = (e) => {
                             e.preventDefault(); // Lock blur execution gracefully
                             inputEl.value = cleanName;
