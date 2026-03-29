@@ -16,13 +16,18 @@ function getAuthHeaders() {
 // Helper to parse error response — always returns a meaningful message
 async function parseError(res) {
     if (res.status === 401) {
-        sessionStorage.clear();
-        window.location.href = 'login.html';
-        return { error: 'Session expired or logged in from another device. Please log in again.' };
+        console.error("401 Unauthorized - Debug Mode");
+
+        // ❌ TEMPORARILY DISABLE REDIRECT
+        // sessionStorage.clear();
+        // window.location.href = 'login.html';
+
+        return { error: '401 Unauthorized (Debug Mode)' };
     }
+
     try {
         const body = await res.json();
-        return body; // { error: '...' }
+        return body;
     } catch (_) {
         return { error: `Server error (HTTP ${res.status}). Please try again.` };
     }
