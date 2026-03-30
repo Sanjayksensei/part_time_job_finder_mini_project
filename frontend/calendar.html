@@ -22,11 +22,27 @@
         .cal-job-event:hover { background: rgba(99, 102, 241, 0.2); }
         .event-time { font-size: 0.65rem; opacity: 0.8; margin-top: 2px; }
         @media (max-width: 768px) {
-            .calendar-grid { display: flex; flex-direction: column; }
-            .day-header { display: none; }
-            .day-cell { min-height: auto; padding: 1rem; }
-            .day-cell.empty { display: none; }
-            .date-num { align-self: flex-start; margin-bottom: 0.5rem; }
+            .calendar-grid {
+                display: grid !important;
+                grid-template-columns: repeat(7, 1fr) !important;
+                min-width: 560px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .day-header {
+                display: block !important;
+                padding: 0.5rem;
+                font-size: 0.72rem;
+            }
+            .day-cell {
+                min-height: 75px;
+                padding: 4px;
+            }
+            .day-cell.empty {
+                display: block !important;
+            }
+            .date-num { font-size: 0.72rem; width: 20px; height: 20px; }
+            .cal-job-event { font-size: 0.65rem; padding: 2px 4px; }
         }
     </style>
 </head>
@@ -46,6 +62,15 @@
         </div>
 
         <div class="main-content" style="margin-left: 250px; flex: 1;">
+            <!-- Mobile Top Bar -->
+            <div class="mobile-top-bar">
+                <button class="btn-menu" aria-label="Menu" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="mobile-brand"><i class="fas fa-briefcase"></i> Job Finder</div>
+                <div class="mobile-user" style="opacity:0"><i class="fas fa-bars"></i></div>
+            </div>
+            <div class="sidebar-overlay" onclick="toggleMobileMenu()" id="sidebarOverlay"></div>
             <div class="role-toggle-header">
                 <div class="toggle-container">
                     <span class="toggle-label active" id="currentRoleLabel">
@@ -54,7 +79,7 @@
                 </div>
             </div>
 
-            <div style="padding: 2rem;">
+            <div style="padding: 1rem;">
                 <div class="calendar-header">
                     <div>
                         <h2 class="mb-1" style="font-weight: 700; color: var(--text-dark);"><i class="fas fa-calendar-alt text-primary me-2"></i>My Jobs Calendar</h2>
@@ -73,14 +98,16 @@
                     <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
                 </div>
                 
-                <div class="calendar-grid" id="calendarGrid" style="display: none;">
-                    <div class="day-header">Sun</div>
-                    <div class="day-header">Mon</div>
-                    <div class="day-header">Tue</div>
-                    <div class="day-header">Wed</div>
-                    <div class="day-header">Thu</div>
-                    <div class="day-header">Fri</div>
-                    <div class="day-header">Sat</div>
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <div class="calendar-grid" id="calendarGrid" style="display: none;">
+                        <div class="day-header">Sun</div>
+                        <div class="day-header">Mon</div>
+                        <div class="day-header">Tue</div>
+                        <div class="day-header">Wed</div>
+                        <div class="day-header">Thu</div>
+                        <div class="day-header">Fri</div>
+                        <div class="day-header">Sat</div>
+                    </div>
                 </div>
             </div>
         </div>

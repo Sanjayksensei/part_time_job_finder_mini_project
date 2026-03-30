@@ -141,6 +141,38 @@
 
     let html5QrCode = null;
 
+    // ─── QR Time Window Helper ───────────────────────────
+    // Returns { status: 'before'|'active'|'after'|'no_schedule', message: '...' }
+    function getQrTimeStatus(item) {
+        // item can be a job (employer) or contract (employee) — both have job_date, start_time, end_time
+        if (!item.job_date || !item.start_time || !item.end_time) {
+            return { status: 'no_schedule', message: '' };
+        }
+
+        const now = new Date();
+        const jobStartDate = item.job_date.slice(0, 10);
+        const jobEndDate = (item.end_date || item.job_date).slice(0, 10);
+
+        const jobStart = new Date(jobStartDate + 'T' + item.start_time);
+        const jobEnd = new Date(jobEndDate + 'T' + item.end_time);
+        const allowedStart = new Date(jobStart.getTime() - 30 * 60 * 1000);
+
+        if (now < allowedStart) {
+            const diffMs = allowedStart - now;
+            const diffMins = Math.ceil(diffMs / 60000);
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}min`;
+            return { status: 'before', message: `Available in ${timeStr}` };
+        }
+
+        if (now > jobEnd) {
+            return { status: 'after', message: 'Time window expired' };
+        }
+
+        return { status: 'active', message: '' };
+    }
+
     // ─── Load contracts ──────────────────────────────────
     async function loadContracts() {
         const container = document.getElementById('contractsContainer');
@@ -223,7 +255,16 @@
                 </div>
 
                 <div class="contract-actions">
-                    <button class="btn-contract-action qr-gen" onclick="generateQR(${job.job_id})"><i class="fas fa-qrcode me-1"></i>Generate QR for Job</button>
+                    ${(() => {
+                        const qrStatus = getQrTimeStatus(job);
+                        if (qrStatus.status === 'active' || qrStatus.status === 'no_schedule') {
+                            return `<button class="btn-contract-action qr-gen" onclick="generateQR(${job.job_id})"><i class="fas fa-qrcode me-1"></i>Generate QR for Job</button>`;
+                        } else if (qrStatus.status === 'before') {
+                            return `<button class="btn-contract-action" disabled style="opacity:0.5; cursor:not-allowed;"><i class="fas fa-clock me-1"></i>${qrStatus.message}</button>`;
+                        } else {
+                            return `<button class="btn-contract-action" disabled style="opacity:0.5; cursor:not-allowed;"><i class="fas fa-lock me-1"></i>${qrStatus.message}</button>`;
+                        }
+                    })()}
                 </div>
             </div>`;
         }).join('');
@@ -253,7 +294,14 @@
 
             let actionButtons = '';
             if (!isResigned && c.status === 'active') {
-                actionButtons += `<button class="btn-contract-action qr-scan" onclick="openScanner()"><i class="fas fa-camera me-1"></i>Scan QR</button>`;
+                const qrStatus = getQrTimeStatus(c);
+                if (qrStatus.status === 'active' || qrStatus.status === 'no_schedule') {
+                    actionButtons += `<button class="btn-contract-action qr-scan" onclick="openScanner()"><i class="fas fa-camera me-1"></i>Scan QR</button>`;
+                } else if (qrStatus.status === 'before') {
+                    actionButtons += `<button class="btn-contract-action" disabled style="opacity:0.5; cursor:not-allowed;"><i class="fas fa-clock me-1"></i>${qrStatus.message}</button>`;
+                } else {
+                    actionButtons += `<button class="btn-contract-action" disabled style="opacity:0.5; cursor:not-allowed;"><i class="fas fa-lock me-1"></i>${qrStatus.message}</button>`;
+                }
             }
 
             if (c.today_marked) {

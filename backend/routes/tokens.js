@@ -10,7 +10,8 @@ const CONTRACT_SELECT = `
     SELECT c.contract_id, c.application_id, c.job_id, c.employee_id, c.employer_id,
            c.job_mode, c.status, c.participation_status, c.created_at,
            j.title AS job_title, j.description AS job_description, j.location AS job_location,
-           j.salary, j.job_type, j.skills_required, j.allow_resignation, j.start_time, j.end_time,
+           j.salary, j.job_type, j.skills_required, j.allow_resignation,
+           j.job_date, j.end_date, j.start_time, j.end_time,
            emp_u.name AS employee_name, emp_u.email AS employee_email,
            emp_u.phone AS employee_phone, emp_u.location AS employee_location,
            er_u.name AS employer_name, er_u.email AS employer_email,
@@ -21,6 +22,43 @@ const CONTRACT_SELECT = `
     JOIN users er_u ON c.employer_id = er_u.user_id
     LEFT JOIN employer_profiles ep ON c.employer_id = ep.user_id
 `;
+
+// ─── Helper: Validate QR time window ──────────────────────────
+// Returns { allowed: true } or { allowed: false, error: '...' }
+function validateQrTimeWindow(job) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    // If job has no date/time info, allow (backwards compatible)
+    if (!job.job_date || !job.start_time || !job.end_time) {
+        return { allowed: true };
+    }
+
+    const now = new Date();
+    const jobStartDate = job.job_date; // e.g. '2026-03-30'
+    const jobEndDate = job.end_date || job.job_date;
+
+    // Build the allowed window:
+    //   allowedStart = job_date + start_time - 30 minutes
+    //   allowedEnd   = end_date + end_time
+    const jobStart = new Date(`${jobStartDate}T${job.start_time}`);
+    const jobEnd = new Date(`${jobEndDate}T${job.end_time}`);
+    const allowedStart = new Date(jobStart.getTime() - 30 * 60 * 1000);
+
+    if (now < allowedStart) {
+        const diffMs = allowedStart - now;
+        const diffMins = Math.ceil(diffMs / 60000);
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} minutes`;
+        return { allowed: false, error: `QR not available yet. Available in ${timeStr}.` };
+    }
+
+    if (now > jobEnd) {
+        return { allowed: false, error: 'QR has expired. The job time window has ended.' };
+    }
+
+    return { allowed: true };
+}
 
 // ─── GET /api/tokens/mine — job seeker's contracts ───────────
 router.get('/mine', authenticate, async (req, res) => {
@@ -81,6 +119,8 @@ router.get('/employer', authenticate, async (req, res) => {
                     job_type: c.job_type,
                     skills_required: c.skills_required,
                     allow_resignation: c.allow_resignation,
+                    job_date: c.job_date,
+                    end_date: c.end_date,
                     start_time: c.start_time,
                     end_time: c.end_time,
                     employees: []
@@ -156,6 +196,12 @@ router.post('/job/:jobId/qr', authenticate, async (req, res) => {
         );
         if (jobs.length === 0) return res.status(404).json({ error: 'Job not found' });
 
+        // 🔒 Time-window validation — only allow QR generation within valid window
+        const timeCheck = validateQrTimeWindow(jobs[0]);
+        if (!timeCheck.allowed) {
+            return res.status(403).json({ error: timeCheck.error });
+        }
+
         // Generate unique QR token for this job
         const qrToken = crypto.randomUUID();
         await pool.query('UPDATE jobs SET qr_token = ? WHERE job_id = ?', [qrToken, jobId]);
@@ -183,6 +229,12 @@ router.post('/attendance/scan', authenticate, async (req, res) => {
         );
         if (jobs.length === 0) {
             return res.status(400).json({ error: 'Invalid QR code. Please scan the correct code from your employer.' });
+        }
+
+        // 🔒 Time-window validation — only allow scanning within valid window
+        const timeCheck = validateQrTimeWindow(jobs[0]);
+        if (!timeCheck.allowed) {
+            return res.status(403).json({ error: timeCheck.error });
         }
 
         // Find this employee's contract for this job

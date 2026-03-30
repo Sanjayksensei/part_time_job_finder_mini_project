@@ -16,18 +16,18 @@ function getAuthHeaders() {
 // Helper to parse error response — always returns a meaningful message
 async function parseError(res) {
     if (res.status === 401) {
-        console.error("401 Unauthorized - Debug Mode");
+        // 🔐 Session expired or invalid token
+        sessionStorage.clear();
 
-        // ❌ TEMPORARILY DISABLE REDIRECT
-        // sessionStorage.clear();
-        // window.location.href = 'login.html';
+        // Redirect to login page
+        window.location.href = 'login.html';
 
-        return { error: '401 Unauthorized (Debug Mode)' };
+        return { error: 'Session expired or logged in from another device. Please log in again.' };
     }
 
     try {
         const body = await res.json();
-        return body;
+        return body; // { error: '...' }
     } catch (_) {
         return { error: `Server error (HTTP ${res.status}). Please try again.` };
     }
@@ -38,7 +38,9 @@ async function apiGet(endpoint) {
         const res = await fetch(API_BASE + endpoint, {
             headers: getAuthHeaders()
         });
+
         if (!res.ok) throw await parseError(res);
+
         return res.json();
     } catch (err) {
         if (err.error) throw err; // already parsed
