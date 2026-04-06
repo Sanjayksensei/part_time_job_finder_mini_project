@@ -15,8 +15,17 @@ let poolConfig;
 if (process.env.DB_URL) {
     // Option 1: Use Aiven service URI directly (recommended)
     console.log(`🔌 Connecting to DB via service URI`);
+
+    const mysql2 = require('mysql2');
+    const parsed = mysql2.createConnection(process.env.DB_URL).config;
+
     poolConfig = {
-        uri: process.env.DB_URL,
+        ...parsed,
+
+        ssl: {
+            rejectUnauthorized: false
+        },
+
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,
