@@ -82,6 +82,7 @@ const SEED_PATH = path.join(__dirname, 'seed.sql');
 async function initDatabase() {
     try {
         console.log('🔄 Checking database connection...');
+        console.log('DB_URL:', process.env.DB_URL);
         const connection = await pool.getConnection();
         console.log('✅ Connected to MySQL database');
 
@@ -367,11 +368,11 @@ async function initDatabase() {
         connection.release();
         return pool;
     } catch (err) {
-        console.error('❌ Database initialization error:', err.message);
-        if (err.code === 'ER_BAD_DB_ERROR') {
-            console.error(`Please create the database first: CREATE DATABASE ${process.env.DB_NAME};`);
-        }
-        throw err;
+        console.error('❌ FULL DB ERROR:', err);
+        console.error('❌ ERROR MESSAGE:', err.message);
+        console.error('❌ ERROR STACK:', err.stack);
+
+        process.exit(1);
     }
 }
 
