@@ -6,75 +6,36 @@ const bcrypt = require('bcryptjs');
 // In production, env vars come from Render dashboard — no .env file needed.
 
 // ── Database Connection Configuration ──
-// Supports two modes:
-//   1. DB_URL (recommended for Aiven) — single connection string
-//   2. Individual vars: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
+// Uses individual environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
 
-let poolConfig;
-
-// Early validation: at least one connection method must be configured
-if (!process.env.DB_URL && !process.env.DB_HOST) {
-    console.error("❌ DB_URL is not defined in environment variables");
-    console.error("   Set DB_URL or individual DB_HOST/DB_USER/DB_PASSWORD/DB_NAME in Render Dashboard.");
+const requiredDbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missing = requiredDbVars.filter(v => !process.env[v]);
+if (missing.length > 0) {
+    console.error(`❌ Missing required database environment variables: ${missing.join(', ')}`);
+    console.error('   Set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME in Render Dashboard → Environment.');
     process.exit(1);
 }
 
-if (process.env.DB_URL) {
-    // Option 1: Use Aiven service URI directly (recommended)
-    console.log(`🔌 Connecting to DB via service URI`);
+console.log(`🔌 Connecting to DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306} (database: ${process.env.DB_NAME})`);
 
-    const dbUrl = new URL(process.env.DB_URL);
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: parseInt(process.env.DB_PORT, 10),
 
-    poolConfig = {
-        host: dbUrl.hostname,
-        user: dbUrl.username,
-        password: dbUrl.password,
-        database: dbUrl.pathname.replace('/', ''),
-        port: parseInt(dbUrl.port),
+    ssl: {
+        rejectUnauthorized: false
+    },
 
-        ssl: {
-            rejectUnauthorized: false
-        },
-
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        connectTimeout: 10000,
-        multipleStatements: true,
-        dateStrings: true
-    };
-} else {
-    // Option 2: Individual environment variables
-    const requiredDbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-    const missing = requiredDbVars.filter(v => !process.env[v]);
-    if (missing.length > 0) {
-        console.error(`❌ Missing required database environment variables: ${missing.join(', ')}`);
-        console.error('   Set DB_URL (recommended) or individual vars in Render Dashboard → Environment.');
-        process.exit(1);
-    }
-
-    console.log(`🔌 Connecting to DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306} (database: ${process.env.DB_NAME})`);
-    poolConfig = {
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
-        port: parseInt(process.env.DB_PORT, 10) || 3306,
-
-        ssl: {
-            rejectUnauthorized: true
-        },
-
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        connectTimeout: 10000,
-        multipleStatements: true,
-        dateStrings: true
-    };
-}
-
-const pool = mysql.createPool(poolConfig);
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    connectTimeout: 10000,
+    multipleStatements: true,
+    dateStrings: true
+});
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const SEED_PATH = path.join(__dirname, 'seed.sql');
