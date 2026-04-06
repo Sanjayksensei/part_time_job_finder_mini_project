@@ -1,4 +1,6 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+// Load .env only if it exists (local dev). In production, env vars come from Render dashboard.
+const dotenvPath = require('path').join(__dirname, '..', '.env');
+require('dotenv').config({ path: dotenvPath });
 
 const express = require('express');
 const cors = require('cors');
