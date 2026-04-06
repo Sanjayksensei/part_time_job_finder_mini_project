@@ -70,4 +70,36 @@ router.post('/', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/reviews/user/:userId — public reviews for any user (authenticated)
+router.get('/user/:userId', authenticate, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        if (!userId) return res.status(400).json({ error: 'Invalid user ID' });
+
+        const [reviews] = await pool.query(`SELECT r.*, u.name as reviewer_name, u.role as reviewer_role,
+            ep.company_name as reviewer_company
+            FROM reviews r JOIN users u ON r.reviewer_id = u.user_id
+            LEFT JOIN employer_profiles ep ON r.reviewer_id = ep.user_id
+            WHERE r.reviewee_id = ? ORDER BY r.created_at DESC`, [userId]);
+
+        // Compute summary
+        let avg_rating = 0;
+        if (reviews.length > 0) {
+            const sum = reviews.reduce((s, r) => s + r.rating, 0);
+            avg_rating = parseFloat((sum / reviews.length).toFixed(1));
+        }
+
+        res.json({
+            reviews,
+            summary: {
+                avg_rating,
+                total_reviews: reviews.length
+            }
+        });
+    } catch (err) {
+        console.error('Get user reviews error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;

@@ -126,4 +126,42 @@ router.put('/employer', authenticate, requireRole('employer'), async (req, res) 
     }
 });
 
+// GET /api/profile/public/:userId — public profile for any user (authenticated)
+router.get('/public/:userId', authenticate, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        if (!userId || isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID: ' + req.params.userId });
+
+        const [users] = await pool.query('SELECT user_id, name, role, location, created_at FROM users WHERE user_id = ?', [userId]);
+        if (users.length === 0) return res.status(404).json({ error: 'User not found (ID: ' + userId + ')' });
+
+        const user = users[0];
+        let profile = {};
+
+        if (user.role === 'employer') {
+            const [profiles] = await pool.query('SELECT company_name, company_description, company_location, industry, company_website FROM employer_profiles WHERE user_id = ?', [userId]);
+            if (profiles.length > 0) profile = profiles[0];
+        } else {
+            const [profiles] = await pool.query('SELECT skills, experience, education, availability FROM employee_profiles WHERE user_id = ?', [userId]);
+            if (profiles.length > 0) profile = profiles[0];
+        }
+
+        // Get active jobs if employer
+        let jobs = [];
+        if (user.role === 'employer') {
+            const [jobRows] = await pool.query(`SELECT j.job_id, j.title, j.location, j.salary, j.job_type, j.job_date, j.end_date, j.start_time, j.end_time, j.status, jc.category_name
+                FROM jobs j
+                LEFT JOIN job_category_mapping jcm ON j.job_id = jcm.job_id
+                LEFT JOIN job_categories jc ON jcm.category_id = jc.category_id
+                WHERE j.employer_id = ? AND j.status = 'open' ORDER BY j.created_at DESC`, [userId]);
+            jobs = jobRows;
+        }
+
+        res.json({ user, profile, jobs });
+    } catch (err) {
+        console.error('Get public profile error:', err.message, err.stack);
+        res.status(500).json({ error: 'Failed to load profile. Database error: ' + err.message });
+    }
+});
+
 module.exports = router;

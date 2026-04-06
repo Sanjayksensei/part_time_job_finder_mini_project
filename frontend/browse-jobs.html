@@ -123,7 +123,7 @@
                     <h5>${job.title}</h5>
                     <div class="company-info">
                         <div class="company-icon">${initials}</div>
-                        <span class="company-name">${company}</span>
+                        <a href="company-profile.html?id=${job.employer_id}" class="company-name-link" onclick="event.stopPropagation()">${company}</a>
                     </div>
                     <div class="job-details">
                         <div class="detail-item"><i class="fas fa-calendar-alt"></i><span>${job.job_date || 'TBA'}${(job.end_date && job.end_date !== job.job_date) ? ' to ' + job.end_date : ''}</span></div>

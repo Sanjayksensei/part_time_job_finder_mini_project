@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Profile - Part Time Job Finder</title>
+    <meta name="description" content="View company profile, job listings, and reviews">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="d-flex">
+    <!-- Sidebar -->
+    <div class="sidebar bg-dark text-white p-3" style="width: 250px; min-height: 100vh; position: fixed;">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-icon"><i class="fas fa-briefcase"></i></div>
+            <span class="sidebar-brand-text">Job Finder</span>
+        </div>
+        <hr>
+        <ul class="nav flex-column" id="sidebarNav"></ul>
+        <div class="nav-item mt-4">
+            <button onclick="logout()" class="btn-logout"><i class="fas fa-sign-out-alt me-2"></i>Logout</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" style="margin-left: 250px; flex: 1;">
+        <!-- Mobile Top Bar -->
+        <div class="mobile-top-bar">
+            <button class="btn-menu" aria-label="Menu" onclick="toggleMobileMenu()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="mobile-brand"><i class="fas fa-briefcase"></i> Job Finder</div>
+            <div class="mobile-user" style="opacity:0"><i class="fas fa-bars"></i></div>
+        </div>
+        <div class="sidebar-overlay" onclick="toggleMobileMenu()" id="sidebarOverlay"></div>
+        <div class="role-toggle-header">
+            <div class="toggle-container">
+                <span class="toggle-label active" id="currentRoleLabel">
+                    <i class="fas fa-user-shield"></i> 
+                    <span id="currentRoleText">Loading...</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Back button -->
+        <div class="mb-3">
+            <a href="javascript:history.back()" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Back</a>
+        </div>
+
+        <!-- Company Profile Header -->
+        <div id="companyProfileHeader">
+            <div class="company-profile-header">
+                <div class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">Loading company profile...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Summary -->
+        <div class="section-header mt-4">
+            <h3 class="section-title"><i class="fas fa-chart-bar text-gradient me-2"></i>Review Summary</h3>
+        </div>
+        <div id="reviewSummaryContainer">
+            <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+        </div>
+
+        <!-- Active Jobs -->
+        <div class="section-header mt-4">
+            <h3 class="section-title"><i class="fas fa-briefcase text-gradient me-2"></i>Active Job Listings</h3>
+        </div>
+        <div class="company-jobs-grid" id="companyJobsGrid">
+            <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading jobs...</div>
+        </div>
+
+        <!-- Individual Reviews -->
+        <div class="section-header mt-4">
+            <h3 class="section-title"><i class="fas fa-star text-gradient me-2"></i>Reviews</h3>
+        </div>
+        <div id="companyReviewsGrid">
+            <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading reviews...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/roleManager.js"></script>
+<script>
+    if (!requireAuth()) { /* redirected */ }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const employerId = urlParams.get('id');
+
+    function getBadgeClass(jobType) {
+        const type = (jobType || '').toLowerCase();
+        if (type.includes('part')) return 'badge-part-time';
+        if (type.includes('temp')) return 'badge-temporary';
+        if (type.includes('intern')) return 'badge-internship';
+        return 'badge-part-time';
+    }
+
+    function renderStars(rating) {
+        const full = Math.floor(rating);
+        const half = rating % 1 >= 0.5 ? 1 : 0;
+        const empty = 5 - full - half;
+        return '<i class="fas fa-star text-warning"></i>'.repeat(full) +
+               (half ? '<i class="fas fa-star-half-alt text-warning"></i>' : '') +
+               '<i class="far fa-star text-muted"></i>'.repeat(empty);
+    }
+
+    async function loadCompanyProfile() {
+        if (!employerId) {
+            document.getElementById('companyProfileHeader').innerHTML = '<div class="company-profile-header text-center"><h4 class="text-danger">No employer ID specified</h4><a href="browse-jobs.html" class="btn btn-primary mt-3">Browse Jobs</a></div>';
+            document.getElementById('reviewSummaryContainer').innerHTML = '';
+            document.getElementById('companyJobsGrid').innerHTML = '';
+            document.getElementById('companyReviewsGrid').innerHTML = '';
+            return;
+        }
+
+        // Load profile
+        try {
+            const data = await apiGet('/profile/public/' + employerId);
+            const user = data.user || {};
+            const profile = data.profile || {};
+            const jobs = data.jobs || [];
+
+            const companyName = profile.company_name || user.name || 'Company';
+            const initials = companyName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
+            document.title = companyName + ' - Part Time Job Finder';
+
+            document.getElementById('companyProfileHeader').innerHTML = `
+                <div class="company-profile-header animate-fade-in-up">
+                    <div class="company-profile-top">
+                        <div class="company-profile-avatar">${initials}</div>
+                        <div class="company-profile-info">
+                            <h2>${companyName}</h2>
+                            ${profile.industry ? `<p class="company-industry"><i class="fas fa-industry me-1"></i>${profile.industry}</p>` : ''}
+                            <div class="company-profile-meta">
+                                ${profile.company_location || user.location ? `<span><i class="fas fa-map-marker-alt"></i> ${profile.company_location || user.location}</span>` : ''}
+                                ${profile.company_website ? `<span><a href="${profile.company_website}" target="_blank" style="color: var(--primary-color); text-decoration: none;"><i class="fas fa-globe"></i> Website</a></span>` : ''}
+                                ${user.created_at ? `<span><i class="fas fa-calendar-alt"></i> Joined ${new Date(user.created_at).toLocaleDateString()}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${profile.company_description ? `
+                    <div class="company-profile-about">
+                        <h5><i class="fas fa-info-circle me-2 text-primary"></i>About Us</h5>
+                        <p>${profile.company_description}</p>
+                    </div>` : `
+                    <div class="company-profile-about">
+                        <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>Company details not available yet.</p>
+                    </div>`}
+                </div>`;
+
+            // Render active jobs
+            if (jobs && jobs.length > 0) {
+                document.getElementById('companyJobsGrid').innerHTML = jobs.map((job, i) => `
+                    <div class="job-card animate-fade-in-up delay-${(i % 4) + 1}">
+                        <span class="job-type-badge ${getBadgeClass(job.job_type)}">${job.job_type || 'Part-time'}</span>
+                        <h5>${job.title}</h5>
+                        <div class="job-details">
+                            <div class="detail-item"><i class="fas fa-map-marker-alt"></i><span>${job.location || 'N/A'}</span></div>
+                            <div class="detail-item"><i class="fas fa-calendar-alt"></i><span>${job.job_date || 'TBA'}</span></div>
+                            ${job.start_time && job.end_time ? `<div class="detail-item"><i class="fas fa-clock"></i><span>${formatTime(job.start_time)} - ${formatTime(job.end_time)}</span></div>` : ''}
+                        </div>
+                        <div class="salary-badge"><i class="fas fa-indian-rupee-sign"></i> ${job.salary}/day</div>
+                        <a href="job-details.html?job_id=${job.job_id}" class="apply-btn">View Details <i class="fas fa-arrow-right ms-2"></i></a>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('companyJobsGrid').innerHTML = '<p class="text-muted">No active job listings</p>';
+            }
+        } catch (err) {
+            console.error('Load company profile error:', err);
+            const errorMsg = (err && err.error) ? err.error : 'Failed to load company profile';
+            document.getElementById('companyProfileHeader').innerHTML = `<div class="company-profile-header text-center"><h4 class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>${errorMsg}</h4><p class="text-muted mt-2">Please try again or go back to browse jobs.</p><a href="browse-jobs.html" class="btn btn-primary mt-3">Browse Jobs</a></div>`;
+            document.getElementById('companyJobsGrid').innerHTML = '';
+        }
+
+        // Load reviews & summary
+        try {
+            const { reviews, summary } = await apiGet('/reviews/user/' + employerId);
+            const reviewSummary = generateReviewSummary(reviews);
+            document.getElementById('reviewSummaryContainer').innerHTML = renderReviewSummaryCard(reviewSummary);
+
+            if (reviews.length === 0) {
+                document.getElementById('companyReviewsGrid').innerHTML = '<p class="text-muted">No reviews yet</p>';
+            } else {
+                document.getElementById('companyReviewsGrid').innerHTML = reviews.map(r => {
+                    const name = r.reviewer_name || 'Anonymous';
+                    const initials = name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                    return `
+                        <div class="card shadow-sm border-0 mb-3 animate-fade-in-up">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="company-icon" style="width:50px;height:50px;line-height:50px;font-size:0.9rem;">${initials}</div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h6 class="fw-bold mb-1">${name}</h6>
+                                                ${r.reviewer_company ? `<small class="text-muted"><i class="fas fa-building me-1"></i>${r.reviewer_company}</small>` : ''}
+                                            </div>
+                                            <small class="text-muted">${new Date(r.created_at).toLocaleDateString()}</small>
+                                        </div>
+                                        <div class="mb-2 mt-1">${renderStars(r.rating)}</div>
+                                        <p class="mb-0 text-muted">"${r.comment || 'No comment'}"</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+        } catch (err) {
+            console.error('Load reviews error:', err);
+            document.getElementById('reviewSummaryContainer').innerHTML = renderReviewSummaryCard(null);
+            document.getElementById('companyReviewsGrid').innerHTML = '<p class="text-danger">Failed to load reviews</p>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadCompanyProfile);
+</script>
+</body>
+</html>

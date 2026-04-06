@@ -12,10 +12,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from project root (Render hosts backend + frontend together)
-app.use(express.static(path.join(__dirname, '..'), { extensions: ['html', 'htm'] }));
-
-// API Routes
+// API Routes (registered BEFORE static files to prevent route interception)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/applications', require('./routes/applications'));
@@ -26,6 +23,10 @@ app.use('/api/recommendations', require('./routes/recommendations'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/tokens', require('./routes/tokens'));
 app.use('/api/reports', require('./routes/reports'));
+
+// Serve static files from project root (Render hosts backend + frontend together)
+// Placed AFTER API routes so /api/* requests are never caught by static middleware
+app.use(express.static(path.join(__dirname, '..'), { extensions: ['html', 'htm'] }));
 
 // Default route
 app.get('/', (req, res) => {

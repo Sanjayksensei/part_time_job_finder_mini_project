@@ -150,6 +150,11 @@
                 </form>
             </div>
         </div>
+
+        <!-- Review Summary (shown for both roles) -->
+        <div id="profileReviewSummary" class="mb-4">
+            <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading review summary...</div>
+        </div>
     </div>
 </div>
 
@@ -189,6 +194,17 @@
         } catch (err) {
             console.error('Load profile error:', err);
             showToast('Failed to load profile', 'error');
+        }
+    }
+
+    async function loadReviewSummary() {
+        try {
+            const { reviews } = await apiGet('/reviews/received');
+            const summary = generateReviewSummary(reviews);
+            document.getElementById('profileReviewSummary').innerHTML = renderReviewSummaryCard(summary, 'My Review Summary');
+        } catch (err) {
+            console.error('Load review summary error:', err);
+            document.getElementById('profileReviewSummary').innerHTML = renderReviewSummaryCard(null, 'My Review Summary');
         }
     }
 
@@ -245,6 +261,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         loadProfile();
+        loadReviewSummary();
         if (typeof setupRealLocationAutocomplete === 'function') {
             setupRealLocationAutocomplete('jsLocation');
             setupRealLocationAutocomplete('epLocation');
@@ -253,3 +270,4 @@
 </script>
 </body>
 </html>
+

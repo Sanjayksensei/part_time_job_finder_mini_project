@@ -395,3 +395,95 @@ function setupRealLocationAutocomplete(inputId) {
     inputEl.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('d-none'), 150));
     inputEl.addEventListener('focus', () => { if (inputEl.value.trim().length >= 2 && dropdown.children.length > 0) dropdown.classList.remove('d-none'); });
 }
+
+// ====== Review Summary Generation System ======
+const STOP_WORDS = new Set([
+    'the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','is','it','was','are',
+    'be','been','being','have','has','had','do','does','did','will','would','could','should','may','might',
+    'shall','can','this','that','these','those','i','me','my','we','our','you','your','he','she','they',
+    'them','his','her','its','not','no','so','if','then','than','very','just','about','also','more','much',
+    'some','any','all','most','other','into','over','such','too','only','same','how','what','which','who',
+    'when','where','why','each','every','both','few','many','after','before','above','below','between',
+    'through','during','because','while','as','up','out','off','down','here','there','again','once','were',
+    'really','quite','well','even','still','already','now','then','back','got','get','go','went','come',
+    'came','make','made','take','took','know','knew','see','saw','think','thought','good','great','nice',
+    'like','work','job','time','day','always','never','often','usually','sometimes','thing','things','lot',
+    'bit','way','going','done','working','worked','them','their','him','her','us','am','im','hes','shes'
+]);
+
+function generateReviewSummary(reviews) {
+    if (!reviews || reviews.length === 0) {
+        return { avgRating: 0, totalReviews: 0, summaryText: '', keywords: [] };
+    }
+
+    const totalReviews = reviews.length;
+    const sum = reviews.reduce((s, r) => s + r.rating, 0);
+    const avgRating = parseFloat((sum / totalReviews).toFixed(1));
+
+    // Extract meaningful words from all comments
+    const wordFreq = {};
+    reviews.forEach(r => {
+        if (!r.comment) return;
+        const words = r.comment.toLowerCase()
+            .replace(/[^a-z\s]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+        words.forEach(w => { wordFreq[w] = (wordFreq[w] || 0) + 1; });
+    });
+
+    // Get top keywords (mentioned more than once, or top 5 by frequency)
+    const sorted = Object.entries(wordFreq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([word]) => word);
+
+    // Build summary text
+    let summaryText = `Rated ${avgRating}/5 based on ${totalReviews} review${totalReviews !== 1 ? 's' : ''}.`;
+    if (sorted.length > 0) {
+        const keywordsFormatted = sorted.slice(0, 3).join(', ');
+        const last = sorted.length > 3 ? sorted[3] : null;
+        summaryText += ` Users often mention ${keywordsFormatted}${last ? ', and ' + last : ''}.`;
+    }
+
+    return { avgRating, totalReviews, summaryText, keywords: sorted };
+}
+
+function renderReviewSummaryCard(summary, title = 'Review Summary') {
+    if (!summary || summary.totalReviews === 0) {
+        return `
+            <div class="review-summary-card">
+                <h5 class="review-summary-title"><i class="fas fa-chart-bar me-2"></i>${title}</h5>
+                <p class="review-summary-empty"><i class="fas fa-comment-slash me-2"></i>No reviews yet</p>
+            </div>`;
+    }
+
+    const fullStars = Math.floor(summary.avgRating);
+    const halfStar = summary.avgRating % 1 >= 0.5 ? 1 : 0;
+    const emptyStars = 5 - fullStars - halfStar;
+    const starsHtml =
+        '<i class="fas fa-star"></i>'.repeat(fullStars) +
+        (halfStar ? '<i class="fas fa-star-half-alt"></i>' : '') +
+        '<i class="far fa-star"></i>'.repeat(emptyStars);
+
+    const ratingColor = summary.avgRating >= 4 ? '#10b981' : summary.avgRating >= 3 ? '#f59e0b' : '#ef4444';
+
+    return `
+        <div class="review-summary-card">
+            <h5 class="review-summary-title"><i class="fas fa-chart-bar me-2"></i>${title}</h5>
+            <div class="review-summary-stats">
+                <div class="review-summary-rating" style="--rating-color: ${ratingColor}">
+                    <span class="review-summary-number">${summary.avgRating}</span>
+                    <div class="review-summary-stars">${starsHtml}</div>
+                </div>
+                <div class="review-summary-count">
+                    <span class="review-summary-count-number">${summary.totalReviews}</span>
+                    <span class="review-summary-count-label">Total Review${summary.totalReviews !== 1 ? 's' : ''}</span>
+                </div>
+            </div>
+            <p class="review-summary-text">${summary.summaryText}</p>
+            ${summary.keywords && summary.keywords.length > 0 ? `
+            <div class="review-summary-keywords">
+                ${summary.keywords.map(k => `<span class="review-keyword-tag">${k}</span>`).join('')}
+            </div>` : ''}
+        </div>`;
+}

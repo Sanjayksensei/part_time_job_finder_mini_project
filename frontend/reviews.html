@@ -82,6 +82,11 @@
             </div>
         </div>
 
+        <!-- Review Summary -->
+        <div id="reviewSummarySection" class="mb-4">
+            <div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> Loading summary...</div>
+        </div>
+
         <!-- Reviews Received -->
         <div class="mb-4">
             <h4 class="fw-bold mb-3"><i class="fas fa-inbox text-primary me-2"></i>Reviews Received</h4>
@@ -141,6 +146,11 @@
         try {
             const { reviews } = await apiGet('/reviews/received');
             const container = document.getElementById('receivedReviewsContainer');
+
+            // Generate and display review summary
+            const summary = generateReviewSummary(reviews);
+            document.getElementById('reviewSummarySection').innerHTML = renderReviewSummaryCard(summary);
+
             if (reviews.length === 0) {
                 container.innerHTML = '<p class="text-muted">No reviews received yet</p>';
             } else {
@@ -148,6 +158,7 @@
             }
         } catch (err) {
             document.getElementById('receivedReviewsContainer').innerHTML = '<p class="text-danger">Failed to load reviews</p>';
+            document.getElementById('reviewSummarySection').innerHTML = renderReviewSummaryCard(null);
         }
 
         // Given reviews
