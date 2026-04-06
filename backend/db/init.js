@@ -4,6 +4,17 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
+// ── Validate required DB environment variables ──
+const requiredDbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missing = requiredDbVars.filter(v => !process.env[v]);
+if (missing.length > 0) {
+    console.error(`❌ Missing required database environment variables: ${missing.join(', ')}`);
+    console.error('   Set these in Render Environment settings (not in .env for production).');
+    process.exit(1);
+}
+
+console.log(`🔌 Database target: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306}`);
+
 // Create a connection pool instead of a single connection
 const pool = mysql.createPool({
     host: process.env.DB_HOST,

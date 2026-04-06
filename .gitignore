@@ -1,0 +1,16 @@
+# Environment variables (contains local DB credentials - NEVER deploy)
+.env
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+error.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
