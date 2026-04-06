@@ -12,6 +12,13 @@ const bcrypt = require('bcryptjs');
 
 let poolConfig;
 
+// Early validation: at least one connection method must be configured
+if (!process.env.DB_URL && !process.env.DB_HOST) {
+    console.error("❌ DB_URL is not defined in environment variables");
+    console.error("   Set DB_URL or individual DB_HOST/DB_USER/DB_PASSWORD/DB_NAME in Render Dashboard.");
+    process.exit(1);
+}
+
 if (process.env.DB_URL) {
     // Option 1: Use Aiven service URI directly (recommended)
     console.log(`🔌 Connecting to DB via service URI`);
