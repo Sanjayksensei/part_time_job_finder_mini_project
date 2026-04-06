@@ -43,7 +43,6 @@ const SEED_PATH = path.join(__dirname, 'seed.sql');
 async function initDatabase() {
     try {
         console.log('🔄 Checking database connection...');
-        console.log('DB_URL:', process.env.DB_URL);
         const connection = await pool.getConnection();
         console.log('✅ Connected to MySQL database');
 
