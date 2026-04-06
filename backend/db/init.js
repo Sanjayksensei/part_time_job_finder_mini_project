@@ -5,36 +5,57 @@ const bcrypt = require('bcryptjs');
 // Note: dotenv is loaded by server.js before this module is imported.
 // In production, env vars come from Render dashboard — no .env file needed.
 
-// ── Validate required DB environment variables ──
-const requiredDbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-const missing = requiredDbVars.filter(v => !process.env[v]);
-if (missing.length > 0) {
-    console.error(`❌ Missing required database environment variables: ${missing.join(', ')}`);
-    console.error('   Set these in Render Dashboard → Environment settings.');
-    process.exit(1);
+// ── Database Connection Configuration ──
+// Supports two modes:
+//   1. DB_URL (recommended for Aiven) — single connection string
+//   2. Individual vars: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
+
+let poolConfig;
+
+if (process.env.DB_URL) {
+    // Option 1: Use Aiven service URI directly (recommended)
+    console.log(`🔌 Connecting to DB via service URI`);
+    poolConfig = {
+        uri: process.env.DB_URL,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        connectTimeout: 10000,
+        multipleStatements: true,
+        dateStrings: true
+    };
+} else {
+    // Option 2: Individual environment variables
+    const requiredDbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+    const missing = requiredDbVars.filter(v => !process.env[v]);
+    if (missing.length > 0) {
+        console.error(`❌ Missing required database environment variables: ${missing.join(', ')}`);
+        console.error('   Set DB_URL (recommended) or individual vars in Render Dashboard → Environment.');
+        process.exit(1);
+    }
+
+    console.log(`🔌 Connecting to DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306} (database: ${process.env.DB_NAME})`);
+    poolConfig = {
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_NAME,
+        port: parseInt(process.env.DB_PORT, 10) || 3306,
+
+        ssl: {
+            rejectUnauthorized: true
+        },
+
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        connectTimeout: 10000,
+        multipleStatements: true,
+        dateStrings: true
+    };
 }
 
-// Safe debug log (no passwords)
-console.log(`🔌 Connecting to DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306} (database: ${process.env.DB_NAME})`);
-
-// Create a connection pool instead of a single connection
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT,
-
-    ssl: {
-        rejectUnauthorized: false
-    },
-
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    multipleStatements: true,
-    dateStrings: true
-});
+const pool = mysql.createPool(poolConfig);
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const SEED_PATH = path.join(__dirname, 'seed.sql');
