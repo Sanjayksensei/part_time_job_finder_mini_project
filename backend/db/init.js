@@ -2,28 +2,16 @@ const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-// Note: dotenv is loaded by server.js before this module is imported.
-// In production, env vars come from Render dashboard — no .env file needed.
 
-// ── Database Connection Configuration ──
-// Uses individual environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
-
-const requiredDbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-const missing = requiredDbVars.filter(v => !process.env[v]);
-if (missing.length > 0) {
-    console.error(`❌ Missing required database environment variables: ${missing.join(', ')}`);
-    console.error('   Set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME in Render Dashboard → Environment.');
-    process.exit(1);
-}
-
-console.log(`🔌 Connecting to DB: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306} (database: ${process.env.DB_NAME})`);
+// ── Database Connection ──
+// Uses ONLY individual env vars: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT, 10),
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    port: parseInt(process.env.DB_PORT, 10),
 
     ssl: {
         rejectUnauthorized: false
@@ -32,73 +20,60 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    connectTimeout: 10000,
-    multipleStatements: true,
-    dateStrings: true
+    connectTimeout: 10000
 });
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const SEED_PATH = path.join(__dirname, 'seed.sql');
 
 async function initDatabase() {
-    try {
-        console.log('🔄 Checking database connection...');
-        const connection = await pool.getConnection();
-        console.log('✅ Connected to MySQL database');
+    const connection = await pool.getConnection();
+    console.log('✅ Connected to MySQL database');
 
+    try {
         // Check if users table exists to determine if we need to seed
         const [rows] = await connection.query("SHOW TABLES LIKE 'users'");
         const isNew = rows.length === 0;
 
         if (isNew) {
-            console.log('🌱 Empty database detected. Initializing schema and seeding data...');
+            console.log('🌱 Initializing schema and seeding data...');
 
-            // 1. Run schema
             const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
             await connection.query(schema);
-            console.log('📋 Schema created successfully');
 
-            // 2. Generate bcrypt hash for 'password123'
             const hash = await bcrypt.hash('password123', parseInt(process.env.BCRYPT_ROUNDS) || 10);
-
-            // 3. Read seed SQL and replace placeholder hashes
             let seed = fs.readFileSync(SEED_PATH, 'utf8');
             seed = seed.replace(/\$PLACEHOLDER\$/g, hash);
-
-            // 4. Run seed
             await connection.query(seed);
-            console.log('✅ Database seeded successfully');
+
+            console.log('✅ Database seeded');
         } else {
-            console.log('📦 Database already populated, skipping seed');
+            console.log('📦 Database already populated');
         }
 
-        // Migration: add 'roles' column if it doesn't exist (supports dual-role feature)
+        // ── Migrations ──
+
+        // roles column on users
         try {
             const [cols] = await connection.query("SHOW COLUMNS FROM users LIKE 'roles'");
             if (cols.length === 0) {
                 await connection.query("ALTER TABLE users ADD COLUMN roles VARCHAR(50) DEFAULT NULL");
                 await connection.query("UPDATE users SET roles = role WHERE roles IS NULL");
-                console.log('✅ Migration: added roles column to users table');
             }
-        } catch (migErr) {
-            console.error('Migration warning (roles column):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: add 'current_token' column for single-session tracking
+        // current_token column on users
         try {
             const [cols] = await connection.query("SHOW COLUMNS FROM users LIKE 'current_token'");
             if (cols.length === 0) {
                 await connection.query("ALTER TABLE users ADD COLUMN current_token TEXT DEFAULT NULL");
-                console.log('✅ Migration: added current_token column to users table');
             }
-        } catch (migErr) {
-            console.error('Migration warning (current_token column):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: create user_roles table if it doesn't exist and populate from existing data
+        // user_roles table
         try {
-            const [urTable] = await connection.query("SHOW TABLES LIKE 'user_roles'");
-            if (urTable.length === 0) {
+            const [t] = await connection.query("SHOW TABLES LIKE 'user_roles'");
+            if (t.length === 0) {
                 await connection.query(`
                     CREATE TABLE user_roles (
                         id INT PRIMARY KEY AUTO_INCREMENT,
@@ -109,9 +84,6 @@ async function initDatabase() {
                         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                     )
                 `);
-                console.log('✅ Migration: created user_roles table');
-
-                // Populate from existing users.roles column data
                 const [allUsers] = await connection.query("SELECT user_id, role, roles FROM users");
                 for (const u of allUsers) {
                     const roleList = (u.roles || u.role || '').split(',').map(r => r.trim()).filter(Boolean);
@@ -124,26 +96,24 @@ async function initDatabase() {
                         }
                     }
                 }
-                console.log('✅ Migration: populated user_roles from existing data');
             }
-        } catch (migErr) {
-            console.error('Migration warning (user_roles table):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: create contracts table if it doesn't exist
+        // contracts table
         try {
-            const [ctTable] = await connection.query("SHOW TABLES LIKE 'contracts'");
-            if (ctTable.length === 0) {
+            const [t] = await connection.query("SHOW TABLES LIKE 'contracts'");
+            if (t.length === 0) {
                 await connection.query(`
                     CREATE TABLE contracts (
                         contract_id INT PRIMARY KEY AUTO_INCREMENT,
-                        application_id INT UNIQUE NOT NULL,
+                        application_id INT UNIQUE DEFAULT NULL,
                         job_id INT NOT NULL,
                         employee_id INT NOT NULL,
                         employer_id INT NOT NULL,
                         job_mode ENUM('offline','online') DEFAULT 'offline',
                         qr_code TEXT,
                         status ENUM('active','completed','cancelled') DEFAULT 'active',
+                        participation_status ENUM('active','resigned') DEFAULT 'active',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         FOREIGN KEY (application_id) REFERENCES applications(application_id) ON DELETE CASCADE,
                         FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE,
@@ -151,16 +121,13 @@ async function initDatabase() {
                         FOREIGN KEY (employer_id) REFERENCES users(user_id) ON DELETE CASCADE
                     )
                 `);
-                console.log('✅ Migration: created contracts table');
             }
-        } catch (migErr) {
-            console.error('Migration warning (contracts table):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: create attendance table if it doesn't exist
+        // attendance table
         try {
-            const [atTable] = await connection.query("SHOW TABLES LIKE 'attendance'");
-            if (atTable.length === 0) {
+            const [t] = await connection.query("SHOW TABLES LIKE 'attendance'");
+            if (t.length === 0) {
                 await connection.query(`
                     CREATE TABLE attendance (
                         attendance_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -174,84 +141,45 @@ async function initDatabase() {
                         FOREIGN KEY (employee_id) REFERENCES users(user_id) ON DELETE CASCADE
                     )
                 `);
-                console.log('✅ Migration: created attendance table');
             }
-        } catch (migErr) {
-            console.error('Migration warning (attendance table):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: add allow_resignation and qr_token columns to jobs
+        // jobs columns: allow_resignation, qr_token, max_workers, status, dates, times
         try {
-            const [cols1] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'allow_resignation'");
-            if (cols1.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN allow_resignation BOOLEAN DEFAULT TRUE");
-                console.log('✅ Migration: added allow_resignation column to jobs');
-            }
-            const [cols2] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'qr_token'");
-            if (cols2.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN qr_token TEXT");
-                console.log('✅ Migration: added qr_token column to jobs');
-            }
-        } catch (migErr) {
-            console.error('Migration warning (jobs columns):', migErr.message);
-        }
+            const addIfMissing = async (table, col, def) => {
+                const [c] = await connection.query(`SHOW COLUMNS FROM ${table} LIKE '${col}'`);
+                if (c.length === 0) await connection.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+            };
+            await addIfMissing('jobs', 'allow_resignation', 'BOOLEAN DEFAULT TRUE');
+            await addIfMissing('jobs', 'qr_token', 'TEXT');
+            await addIfMissing('jobs', 'max_workers', 'INT DEFAULT NULL');
+            await addIfMissing('jobs', 'status', "ENUM('open','closed') DEFAULT 'open'");
+            await addIfMissing('jobs', 'job_date', 'DATE DEFAULT NULL');
+            await addIfMissing('jobs', 'end_date', 'DATE DEFAULT NULL');
+            await addIfMissing('jobs', 'start_time', 'TIME DEFAULT NULL');
+            await addIfMissing('jobs', 'end_time', 'TIME DEFAULT NULL');
+        } catch (_) {}
 
-        // Migration: add max_workers and status columns to jobs (job capacity feature)
+        // contracts: participation_status column
         try {
-            const [mwCols] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'max_workers'");
-            if (mwCols.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN max_workers INT DEFAULT NULL");
-                console.log('✅ Migration: added max_workers column to jobs');
-            }
-            const [stCols] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'status'");
-            if (stCols.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN status ENUM('open','closed') DEFAULT 'open'");
-                console.log('✅ Migration: added status column to jobs');
-            }
-        } catch (migErr) {
-        }
-
-        // Migration: add start_time and end_time columns to jobs (time management)
-        try {
-            const [dtCols] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'job_date'");
-            if (dtCols.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN job_date DATE DEFAULT NULL");
-                console.log('✅ Migration: added job_date column to jobs');
-            }
-
-            // Migration: Append end_date natively protecting bounds organically
-            const [edCols] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'end_date'");
-            if (edCols.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN end_date DATE DEFAULT NULL");
-                console.log('✅ Migration: added end_date column to jobs');
-            }
-            const [stCols] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'start_time'");
-            if (stCols.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN start_time TIME DEFAULT NULL");
-                console.log('✅ Migration: added start_time column to jobs');
-            }
-            const [etCols] = await connection.query("SHOW COLUMNS FROM jobs LIKE 'end_time'");
-            if (etCols.length === 0) {
-                await connection.query("ALTER TABLE jobs ADD COLUMN end_time TIME DEFAULT NULL");
-                console.log('✅ Migration: added end_time column to jobs');
-            }
-        } catch (migErr) {
-            console.error('Migration warning (jobs time columns):', migErr.message);
-        }
-        try {
-            const [cols3] = await connection.query("SHOW COLUMNS FROM contracts LIKE 'participation_status'");
-            if (cols3.length === 0) {
+            const [c] = await connection.query("SHOW COLUMNS FROM contracts LIKE 'participation_status'");
+            if (c.length === 0) {
                 await connection.query("ALTER TABLE contracts ADD COLUMN participation_status ENUM('active','resigned') DEFAULT 'active'");
-                console.log('✅ Migration: added participation_status column to contracts');
             }
-        } catch (migErr) {
-            console.error('Migration warning (contracts participation_status):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: create job_offers table
+        // contracts: make application_id nullable
         try {
-            const [ofTable] = await connection.query("SHOW TABLES LIKE 'job_offers'");
-            if (ofTable.length === 0) {
+            const [cols] = await connection.query("SHOW COLUMNS FROM contracts WHERE Field = 'application_id'");
+            if (cols.length > 0 && cols[0].Null === 'NO') {
+                await connection.query("ALTER TABLE contracts MODIFY application_id INT UNIQUE DEFAULT NULL");
+            }
+        } catch (_) {}
+
+        // job_offers table
+        try {
+            const [t] = await connection.query("SHOW TABLES LIKE 'job_offers'");
+            if (t.length === 0) {
                 await connection.query(`
                     CREATE TABLE job_offers (
                         offer_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -268,27 +196,13 @@ async function initDatabase() {
                         FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE
                     )
                 `);
-                console.log('✅ Migration: created job_offers table');
             }
-        } catch (migErr) {
-            console.error('Migration warning (job_offers table):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: make application_id nullable in contracts (allow offer-based contracts)
+        // reports table
         try {
-            const [cols] = await connection.query("SHOW COLUMNS FROM contracts WHERE Field = 'application_id'");
-            if (cols.length > 0 && cols[0].Null === 'NO') {
-                await connection.query("ALTER TABLE contracts MODIFY application_id INT UNIQUE DEFAULT NULL");
-                console.log('✅ Migration: made application_id nullable in contracts');
-            }
-        } catch (migErr) {
-            console.error('Migration warning (contracts application_id nullable):', migErr.message);
-        }
-
-        // Migration: create reports table
-        try {
-            const [rpTable] = await connection.query("SHOW TABLES LIKE 'reports'");
-            if (rpTable.length === 0) {
+            const [t] = await connection.query("SHOW TABLES LIKE 'reports'");
+            if (t.length === 0) {
                 await connection.query(`
                     CREATE TABLE reports (
                         report_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -304,37 +218,22 @@ async function initDatabase() {
                         FOREIGN KEY (reported_id) REFERENCES users(user_id) ON DELETE CASCADE
                     )
                 `);
-                console.log('✅ Migration: created reports table');
             }
-        } catch (migErr) {
-            console.error('Migration warning (reports table):', migErr.message);
-        }
+        } catch (_) {}
 
-        // Migration: add UNIQUE constraint on applications(job_id, employee_id) to prevent duplicates
+        // applications: unique constraint
         try {
-            const [indexes] = await connection.query(
-                "SHOW INDEX FROM applications WHERE Key_name = 'unique_job_employee'"
-            );
-            if (indexes.length === 0) {
-                await connection.query(
-                    "ALTER TABLE applications ADD UNIQUE KEY unique_job_employee (job_id, employee_id)"
-                );
-                console.log('✅ Migration: added UNIQUE(job_id, employee_id) to applications');
+            const [idx] = await connection.query("SHOW INDEX FROM applications WHERE Key_name = 'unique_job_employee'");
+            if (idx.length === 0) {
+                await connection.query("ALTER TABLE applications ADD UNIQUE KEY unique_job_employee (job_id, employee_id)");
             }
-        } catch (migErr) {
-            console.error('Migration warning (applications unique constraint):', migErr.message);
-        }
+        } catch (_) {}
 
+    } finally {
         connection.release();
-        return pool;
-    } catch (err) {
-        console.error('❌ FULL DB ERROR:', err);
-        console.error('❌ ERROR MESSAGE:', err.message);
-        console.error('❌ ERROR STACK:', err.stack);
-
-        process.exit(1);
     }
+
+    return pool;
 }
 
-// Export the pool directly so routes can use pool.query()
 module.exports = { initDatabase, pool };
