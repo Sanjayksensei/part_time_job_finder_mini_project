@@ -94,6 +94,7 @@ router.post('/login', async (req, res) => {
         const { email, password } = req.body;
 
         console.log("REQ BODY:", req.body);
+        console.log("JWT_SECRET:", process.env.JWT_SECRET ? "SET" : "MISSING");
 
         // 1. Validate input
         if (!email || !password) {
