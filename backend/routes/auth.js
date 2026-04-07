@@ -19,6 +19,9 @@ router.post('/register', async (req, res) => {
                 company_name, company_description, company_location,
                 skills, experience, education } = req.body;
 
+        console.log("REGISTER REQ BODY:", req.body);
+
+        // Validate input
         if (!name || !email || !password || !role) {
             return res.status(400).json({ error: 'Name, email, password, and role are required' });
         }
@@ -26,13 +29,21 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ error: 'Role must be employee or employer' });
         }
 
+        // Check if user already exists
         const [existing] = await pool.query('SELECT user_id FROM users WHERE email = ?', [email]);
         if (existing.length > 0) {
             return res.status(400).json({ error: 'Email already registered' });
         }
 
+        // Check JWT_SECRET before proceeding
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+
+        // Hash password
         const hash = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 10);
         
+        // Insert user
         const [result] = await pool.query(
             'INSERT INTO users (name, email, password, phone, role, location, roles) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [name, email, hash, phone || null, role, location || null, role]
@@ -56,19 +67,24 @@ router.post('/register', async (req, res) => {
             );
         }
 
+        // Generate token
         const token = jwt.sign(
             { user_id: insertId, email, role },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
-
         const allRoles = await getUserRoles(insertId);
         const [users] = await pool.query('SELECT user_id, name, email, role, location FROM users WHERE user_id = ?', [insertId]);
-        res.status(201).json({ token, user: { ...users[0], roles: allRoles.join(',') } });
+
+        return res.status(201).json({
+            message: 'Registration successful',
+            token,
+            user: { ...users[0], roles: allRoles.join(',') }
+        });
     } catch (err) {
-        console.error('Register error:', err);
-        res.status(500).json({ error: 'Server error' });
+        console.error('REGISTER ERROR:', err);
+        return res.status(500).json({ error: 'Internal server error during registration' });
     }
 });
 
@@ -76,6 +92,8 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        console.log("REQ BODY:", req.body);
 
         // 1. Validate input
         if (!email || !password) {
@@ -92,13 +110,21 @@ router.post('/login', async (req, res) => {
 
         if (rows.length === 0) {
             return res.status(404).json({
-                error: 'User not registered. Please sign up first.'
+                error: 'User not registered'
             });
         }
 
         const user = rows[0];
+        console.log("USER:", user);
 
-        // 3. Check password
+        // 3. Ensure password data exists
+        if (!user.password) {
+            return res.status(500).json({
+                error: 'Password data error'
+            });
+        }
+
+        // 4. Compare password
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
@@ -107,14 +133,24 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // 4. Generate token (start session)
+        // 5. Check JWT_SECRET
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({
+                error: 'Server configuration error'
+            });
+        }
+
+        // 6. Generate token
         const token = jwt.sign(
-            { user_id: user.user_id },
+            { user_id: user.user_id, email: user.email, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
 
-        // 5. Send success response
+        // 7. Get all roles for multi-role support
+        const allRoles = await getUserRoles(user.user_id);
+
+        // 8. Send success response
         return res.status(200).json({
             message: 'Login successful',
             token,
@@ -122,7 +158,8 @@ router.post('/login', async (req, res) => {
                 user_id: user.user_id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                roles: allRoles.join(',')
             }
         });
 
