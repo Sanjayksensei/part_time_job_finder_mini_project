@@ -1,4 +1,4 @@
-const API_BASE = 'https://part-time-job-finder-mini-project.onrender.com/api';
+const API_BASE = 'https://part-time-job-finder-mini-project-al91.onrender.com/api';
 
 function getToken() {
     return localStorage.getItem('authToken');
