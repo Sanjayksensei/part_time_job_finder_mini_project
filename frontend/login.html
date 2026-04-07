@@ -184,7 +184,9 @@ async function login() {
             window.location.href = 'dashboard.html';
         }
     } catch (err) {
-        errorDiv.textContent = err.error || err.message || 'Login failed. Please try again.';
+        // Show clear, status-specific error messages
+        const message = err.error || err.message || 'Login failed. Please try again.';
+        errorDiv.textContent = message;
         errorDiv.style.display = 'block';
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign In';

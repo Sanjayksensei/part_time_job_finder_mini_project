@@ -77,53 +77,61 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        // 1. Validate input
         if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password are required' });
+            return res.status(400).json({
+                error: 'Email and password are required'
+            });
         }
 
-        const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-        if (users.length === 0) {
-            return res.status(401).json({ error: 'User not found. Please register first.' });
-        }
-
-        const user = users[0];
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) {
-            return res.status(401).json({ error: 'Incorrect password. Please try again.' });
-        }
-
-        // Get all roles from user_roles table
-        const allRoles = await getUserRoles(user.user_id);
-        const rolesString = allRoles.length > 0 ? allRoles.join(',') : user.role;
-
-        // Sync users.roles column with user_roles table data
-        if (rolesString !== user.roles) {
-            await pool.query('UPDATE users SET roles = ? WHERE user_id = ?', [rolesString, user.user_id]);
-        }
-
-        const token = jwt.sign(
-            { user_id: user.user_id, email: user.email, role: user.role },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        // 2. Check if user exists
+        const [rows] = await pool.query(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
         );
 
-        await pool.query('UPDATE users SET current_token = ? WHERE user_id = ?', [token, user.user_id]);
+        if (rows.length === 0) {
+            return res.status(404).json({
+                error: 'User not registered. Please sign up first.'
+            });
+        }
 
-        res.json({
+        const user = rows[0];
+
+        // 3. Check password
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                error: 'Incorrect password'
+            });
+        }
+
+        // 4. Generate token (start session)
+        const token = jwt.sign(
+            { user_id: user.user_id },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // 5. Send success response
+        return res.status(200).json({
+            message: 'Login successful',
             token,
             user: {
                 user_id: user.user_id,
                 name: user.name,
                 email: user.email,
-                role: user.role,
-                roles: rolesString,
-                location: user.location,
-                phone: user.phone
+                role: user.role
             }
         });
+
     } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).json({ error: 'Server error' });
+        console.error('LOGIN ERROR:', err);
+        return res.status(500).json({
+            error: 'Internal server error during login'
+        });
     }
 });
 

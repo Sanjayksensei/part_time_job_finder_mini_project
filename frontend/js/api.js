@@ -15,13 +15,13 @@ function getAuthHeaders() {
 
 // Helper to parse error response — always returns a meaningful message
 async function parseError(res) {
-    if (res.status === 401) {
-        // 🔐 Session expired or invalid token
+    // Check if we're on the login or register page (don't redirect during auth)
+    const isAuthPage = window.location.pathname.includes('login') || window.location.pathname.includes('register');
+
+    if (res.status === 401 && !isAuthPage) {
+        // 🔐 Session expired or invalid token — redirect only from protected pages
         sessionStorage.clear();
-
-        // Redirect to login page
         window.location.href = 'login.html';
-
         return { error: 'Session expired or logged in from another device. Please log in again.' };
     }
 
