@@ -128,7 +128,7 @@ function toggleRoleFields() {
 
 if (addRoleMode && ['employee', 'employer'].includes(addRoleMode)) {
     // This is an add-role flow — user is adding a second role to their account
-    const token = sessionStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
     if (!token) {
         // Not logged in, redirect to regular registration
         window.location.href = 'register.html';
@@ -211,14 +211,14 @@ async function register() {
             }
 
             const data = await apiPost('/auth/add-role', payload);
-            // Update sessionStorage with new roles
-            sessionStorage.setItem('userRoles', data.roles);
+            // Update localStorage with new roles
+            localStorage.setItem('userRoles', data.roles);
             // Switch to the new role
             const switchData = await apiPost('/auth/switch-role', { role: addRoleMode });
-            sessionStorage.setItem('authToken', switchData.token);
-            sessionStorage.setItem('userRole', switchData.user.role);
-            sessionStorage.setItem('currentView', switchData.user.role);
-            sessionStorage.setItem('userRoles', switchData.user.roles || switchData.user.role);
+            localStorage.setItem('authToken', switchData.token);
+            localStorage.setItem('userRole', switchData.user.role);
+            localStorage.setItem('currentView', switchData.user.role);
+            localStorage.setItem('userRoles', switchData.user.roles || switchData.user.role);
             window.location.href = 'dashboard.html';
         } catch (err) {
             errorDiv.textContent = err.error || err.message || 'Failed to add role. Please try again.';
@@ -264,12 +264,12 @@ async function register() {
         }
 
         const data = await apiPost('/auth/register', payload);
-        sessionStorage.setItem('authToken', data.token);
-        sessionStorage.setItem('currentView', data.user.role);
-        sessionStorage.setItem('userId', data.user.user_id);
-        sessionStorage.setItem('userName', data.user.name);
-        sessionStorage.setItem('userRole', data.user.role);
-        sessionStorage.setItem('userRoles', data.user.roles || data.user.role);
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('currentView', data.user.role);
+        localStorage.setItem('userId', data.user.user_id);
+        localStorage.setItem('userName', data.user.name);
+        localStorage.setItem('userRole', data.user.role);
+        localStorage.setItem('userRoles', data.user.roles || data.user.role);
         window.location.href = 'dashboard.html';
     } catch (err) {
         errorDiv.textContent = err.error || err.message || 'Registration failed. Please try again.';

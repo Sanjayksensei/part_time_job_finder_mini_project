@@ -62,7 +62,6 @@ router.post('/register', async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
-        await pool.query('UPDATE users SET current_token = ? WHERE user_id = ?', [token, insertId]);
 
         const allRoles = await getUserRoles(insertId);
         const [users] = await pool.query('SELECT user_id, name, email, role, location FROM users WHERE user_id = ?', [insertId]);
@@ -229,7 +228,6 @@ router.post('/switch-role', authenticate, async (req, res) => {
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
         );
 
-        await pool.query('UPDATE users SET current_token = ? WHERE user_id = ?', [token, user.user_id]);
 
         res.json({
             token,

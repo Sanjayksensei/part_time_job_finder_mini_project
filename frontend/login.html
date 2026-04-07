@@ -163,9 +163,9 @@ async function login() {
         const data = await apiPost('/auth/login', { email, password });
 
         // Store basic auth data
-        sessionStorage.setItem('authToken', data.token);
-        sessionStorage.setItem('userId', data.user.user_id);
-        sessionStorage.setItem('userName', data.user.name);
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('userId', data.user.user_id);
+        localStorage.setItem('userName', data.user.name);
 
         const rolesStr = data.user.roles || data.user.role;
         const rolesArr = rolesStr.split(',').filter(Boolean);
@@ -178,9 +178,9 @@ async function login() {
             btn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign In';
         } else {
             // Single role — go directly to dashboard
-            sessionStorage.setItem('currentView', data.user.role);
-            sessionStorage.setItem('userRole', data.user.role);
-            sessionStorage.setItem('userRoles', rolesStr);
+            localStorage.setItem('currentView', data.user.role);
+            localStorage.setItem('userRole', data.user.role);
+            localStorage.setItem('userRoles', rolesStr);
             window.location.href = 'dashboard.html';
         }
     } catch (err) {
@@ -199,16 +199,16 @@ async function selectLoginRole(role) {
     try {
         // Switch to the selected role (issues new JWT)
         const switchData = await apiPost('/auth/switch-role', { role });
-        sessionStorage.setItem('authToken', switchData.token);
-        sessionStorage.setItem('userRole', switchData.user.role);
-        sessionStorage.setItem('currentView', switchData.user.role);
-        sessionStorage.setItem('userRoles', switchData.user.roles || switchData.user.role);
+        localStorage.setItem('authToken', switchData.token);
+        localStorage.setItem('userRole', switchData.user.role);
+        localStorage.setItem('currentView', switchData.user.role);
+        localStorage.setItem('userRoles', switchData.user.roles || switchData.user.role);
         window.location.href = 'dashboard.html';
     } catch (err) {
         // If switch fails, use original login data with original role
-        sessionStorage.setItem('currentView', pendingLoginData.user.role);
-        sessionStorage.setItem('userRole', pendingLoginData.user.role);
-        sessionStorage.setItem('userRoles', pendingLoginData.user.roles || pendingLoginData.user.role);
+        localStorage.setItem('currentView', pendingLoginData.user.role);
+        localStorage.setItem('userRole', pendingLoginData.user.role);
+        localStorage.setItem('userRoles', pendingLoginData.user.roles || pendingLoginData.user.role);
         window.location.href = 'dashboard.html';
     }
 }

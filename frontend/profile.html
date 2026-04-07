@@ -224,7 +224,7 @@
                 education: document.getElementById('jsEducation').value
             });
             showToast('Profile saved successfully!', 'success');
-            sessionStorage.setItem('userName', document.getElementById('jsName').value);
+            localStorage.setItem('userName', document.getElementById('jsName').value);
         } catch (err) {
             showToast(err.error || 'Failed to save profile', 'error');
         }
@@ -250,7 +250,7 @@
                 website: document.getElementById('epWebsite').value
             });
             showToast('Employer profile saved!', 'success');
-            sessionStorage.setItem('userName', document.getElementById('epName').value);
+            localStorage.setItem('userName', document.getElementById('epName').value);
         } catch (err) {
             showToast(err.error || 'Failed to save profile', 'error');
         }

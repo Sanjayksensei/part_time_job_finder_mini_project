@@ -1,7 +1,7 @@
 const API_BASE = 'https://part-time-job-finder-mini-project.onrender.com/api';
 
 function getToken() {
-    return sessionStorage.getItem('authToken');
+    return localStorage.getItem('authToken');
 }
 
 function getAuthHeaders() {
@@ -20,7 +20,7 @@ async function parseError(res) {
 
     if (res.status === 401 && !isAuthPage) {
         // 🔐 Session expired or invalid token — redirect only from protected pages
-        sessionStorage.clear();
+        localStorage.clear();
         window.location.href = 'login.html';
         return { error: 'Session expired or logged in from another device. Please log in again.' };
     }
@@ -101,9 +101,9 @@ function requireAuth() {
     return true;
 }
 
-// Get current user role from sessionStorage
+// Get current user role from localStorage
 function getCurrentRole() {
-    return sessionStorage.getItem('userRole') || sessionStorage.getItem('currentView') || 'employee';
+    return localStorage.getItem('userRole') || localStorage.getItem('currentView') || 'employee';
 }
 
 // Alias for backwards compatibility
@@ -177,7 +177,7 @@ function confirmAction(message) {
 
 // Logout
 function logout() {
-    sessionStorage.clear();
+    localStorage.clear();
     window.location.href = 'login.html';
 }
 
@@ -210,7 +210,7 @@ function resetInactivityTimer() {
     if (getToken()) {
         inactivityTimer = setTimeout(() => {
             alert("Your session has expired due to 1 hour of inactivity. Please log in again.");
-            sessionStorage.clear();
+            localStorage.clear();
             window.location.href = 'login.html';
         }, INACTIVITY_TIMEOUT_MS);
     }

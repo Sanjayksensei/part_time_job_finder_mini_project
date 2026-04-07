@@ -188,7 +188,7 @@
 
                     ${role === 'employee' ? `
                     <div id="applySection" class="mt-4">
-                        ${String(job.employer_id) === sessionStorage.getItem('userId') ? `
+                        ${String(job.employer_id) === localStorage.getItem('userId') ? `
                         <button class="btn btn-secondary btn-lg w-100 py-3" disabled>
                             <i class="fas fa-ban me-2"></i>This Is Your Own Job
                         </button>

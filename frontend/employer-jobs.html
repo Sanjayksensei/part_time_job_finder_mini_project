@@ -85,7 +85,7 @@
 <script src="js/roleManager.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const token = sessionStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken');
         const role = getCurrentRole();
         
         if (!token || role !== 'employer') {

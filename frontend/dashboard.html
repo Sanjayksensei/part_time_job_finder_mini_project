@@ -436,7 +436,7 @@
         // Load dashboard data from API
         async function loadDashboardData() {
             const role = getCurrentRole();
-            const userName = sessionStorage.getItem('userName') || 'User';
+            const userName = localStorage.getItem('userName') || 'User';
 
             if (role === 'employer') {
                 document.getElementById('jobSeekerUI').style.display = 'none';

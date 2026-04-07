@@ -5,11 +5,11 @@
  */
 
 function getCurrentRole() {
-    return sessionStorage.getItem('userRole') || sessionStorage.getItem('currentView') || 'employee';
+    return localStorage.getItem('userRole') || localStorage.getItem('currentView') || 'employee';
 }
 
 function getUserRoles() {
-    const roles = sessionStorage.getItem('userRoles') || getCurrentRole();
+    const roles = localStorage.getItem('userRoles') || getCurrentRole();
     return roles.split(',');
 }
 
@@ -28,10 +28,10 @@ async function switchRole(newRole) {
     try {
         const data = await apiPost('/auth/switch-role', { role: newRole });
         // Update local storage with new token and role
-        sessionStorage.setItem('authToken', data.token);
-        sessionStorage.setItem('userRole', data.user.role);
-        sessionStorage.setItem('currentView', data.user.role);
-        sessionStorage.setItem('userRoles', data.user.roles || data.user.role);
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('userRole', data.user.role);
+        localStorage.setItem('currentView', data.user.role);
+        localStorage.setItem('userRoles', data.user.roles || data.user.role);
         // Reload the page to reflect new role
         window.location.reload();
     } catch (err) {

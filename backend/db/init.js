@@ -62,13 +62,6 @@ async function initDatabase() {
             }
         } catch (_) {}
 
-        // current_token column on users
-        try {
-            const [cols] = await connection.query("SHOW COLUMNS FROM users LIKE 'current_token'");
-            if (cols.length === 0) {
-                await connection.query("ALTER TABLE users ADD COLUMN current_token TEXT DEFAULT NULL");
-            }
-        } catch (_) {}
 
         // user_roles table
         try {
